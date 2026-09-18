@@ -45,12 +45,24 @@ for (const answer of answers) {
   await evaluate(`document.querySelector('#next-btn').click()`);
 }
 
+await evaluate(`document.querySelector('[data-review="0"]').click()`);
+const firstReview = await evaluate(`({
+  expanded: document.querySelector('[data-review="0"]').getAttribute('aria-expanded'),
+  detailVisible: getComputedStyle(document.querySelector('#review-detail-0')).display
+})`);
+await evaluate(`document.querySelector('#open-all-reviews').click()`);
 const result = await evaluate(`({
   heading: document.querySelector('.result-copy h1')?.textContent,
   score: document.querySelector('.score-orbit strong')?.textContent,
   reviewCards: document.querySelectorAll('.review-card').length,
-  correctCards: document.querySelectorAll('.review-card.correct').length
+  correctCards: document.querySelectorAll('.review-card.correct').length,
+  openCards: document.querySelectorAll('.review-card.open').length,
+  firstReview: ${JSON.stringify(firstReview)}
 })`);
+
+await evaluate(`document.querySelector('.review-section').scrollIntoView()`);
+const reviewScreenshot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+writeFileSync('/private/tmp/iq-test-review.png', Buffer.from(reviewScreenshot.data, 'base64'));
 
 await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await evaluate(`scrollTo(0, 0)`);

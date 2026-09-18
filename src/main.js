@@ -223,15 +223,40 @@ function finishQuiz() {
         <h1>${profile.title}</h1>
         <p>${profile.text}</p>
         <div class="score-strip"><div><small>推定IQレンジ</small><strong>${profile.iq}</strong></div><div><small>正解数</small><strong>${score}<em> / ${questions.length}</em></strong></div><div><small>所要時間</small><strong>${formatTime(480 - state.seconds)}</strong></div></div>
+        <button class="review-jump" id="review-jump" type="button">問題を振り返る <span>↓</span></button>
       </div>
       <div class="score-orbit" style="--score-angle:${angle}deg"><div><small>SCORE</small><strong>${score * 10}</strong><span>/ 100</span></div></div>
     </section>
     <section class="review-section">
       <div class="review-heading"><span>02</span><div><small>ANSWER REVIEW</small><h2>思考の軌跡を<br>振り返る。</h2></div></div>
+      <div class="review-tools"><p>カードを開くと、出題内容とすべての選択肢を確認できます。</p><button id="open-all-reviews" type="button">すべて開く</button></div>
       <div class="review-grid">
         ${questions.map((q, i) => {
           const correct = state.answers[i] === q.answer;
-          return `<article class="review-card ${correct ? 'correct' : 'wrong'}"><header><span>Q${String(i + 1).padStart(2, '0')}</span><b>${correct ? 'CORRECT' : 'REVIEW'}</b></header><h3>${q.prompt}</h3><p>${q.explanation}</p><footer><span>あなたの回答</span><b>${state.answers[i] === null ? '未回答' : q.choices[state.answers[i]]}</b><i>正解 ${q.choices[q.answer]}</i></footer></article>`;
+          return `<article class="review-card ${correct ? 'correct' : 'wrong'}">
+            <button class="review-summary" type="button" data-review="${i}" aria-expanded="false">
+              <span class="review-number">Q${String(i + 1).padStart(2, '0')}</span>
+              <span class="review-status">${correct ? 'CORRECT' : 'REVIEW'}</span>
+              <strong>${q.prompt}</strong>
+              <span class="review-answer">あなたの回答 <b>${state.answers[i] === null ? '未回答' : q.choices[state.answers[i]]}</b></span>
+              <i>＋</i>
+            </button>
+            <div class="review-detail" id="review-detail-${i}">
+              <div class="review-question">
+                <small>${q.category} / ${q.level}</small>
+                ${q.body ? `<p class="review-body">${q.body}</p>` : ''}
+                ${q.visual || ''}
+                <div class="review-choices">
+                  ${q.choices.map((choice, choiceIndex) => {
+                    const isCorrect = choiceIndex === q.answer;
+                    const isSelected = choiceIndex === state.answers[i];
+                    return `<div class="review-choice ${isCorrect ? 'is-correct' : ''} ${isSelected ? 'is-selected' : ''}"><span>${String.fromCharCode(65 + choiceIndex)}</span><b>${choice}</b>${isCorrect ? '<em>正解</em>' : ''}${isSelected && !isCorrect ? '<em>あなたの回答</em>' : ''}</div>`;
+                  }).join('')}
+                </div>
+              </div>
+              <div class="review-explanation"><small>EXPLANATION</small><p>${q.explanation}</p></div>
+            </div>
+          </article>`;
         }).join('')}
       </div>
       <div class="result-actions"><button class="primary-btn" id="retry-btn" type="button">もう一度挑戦する ${icons.arrow}</button><button class="text-btn" id="home-btn" type="button">トップに戻る</button></div>
@@ -240,6 +265,21 @@ function finishQuiz() {
   `, 'result');
   document.querySelector('#retry-btn').addEventListener('click', startQuiz);
   document.querySelector('#home-btn').addEventListener('click', renderIntro);
+  document.querySelector('#review-jump').addEventListener('click', () => document.querySelector('.review-section').scrollIntoView({ behavior: 'smooth' }));
+  document.querySelectorAll('[data-review]').forEach(button => button.addEventListener('click', () => {
+    const card = button.closest('.review-card');
+    const isOpen = card.classList.toggle('open');
+    button.setAttribute('aria-expanded', String(isOpen));
+  }));
+  document.querySelector('#open-all-reviews').addEventListener('click', event => {
+    const cards = [...document.querySelectorAll('.review-card')];
+    const shouldOpen = cards.some(card => !card.classList.contains('open'));
+    cards.forEach(card => {
+      card.classList.toggle('open', shouldOpen);
+      card.querySelector('.review-summary').setAttribute('aria-expanded', String(shouldOpen));
+    });
+    event.currentTarget.textContent = shouldOpen ? 'すべて閉じる' : 'すべて開く';
+  });
   document.querySelector('.brand').addEventListener('click', e => { e.preventDefault(); renderIntro(); });
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
