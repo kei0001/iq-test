@@ -1,6 +1,7 @@
 import './style.css';
+import { buildPools, createQuiz, rotationQuestion, pinQuestion } from './questions.js';
 
-const questions = [
+const baseQuestions = [
   {
     category: '数的推理', level: 'WARM UP', accent: '#ff5f45',
     prompt: '数列の「？」に入る数字は？',
@@ -35,20 +36,8 @@ const questions = [
     choices: ['11', '12', '13', '15'], answer: 2,
     explanation: '直前の2つを足すフィボナッチ数列です。5 + 8 = 13。'
   },
-  {
-    category: '空間認識', level: 'ROTATION', accent: '#f4b942',
-    prompt: '同じ形を回転させたものはどれ？',
-    visual: `<div class="rotation-stage"><div class="tangram original"><i></i><b></b><em></em></div><span>↻</span></div>`,
-    choices: ['左上に点があるL', '右上に点があるL', '左下に点があるL', '点のないL'], answer: 2,
-    explanation: '180度回転すると、L字の向きと点の位置がともに反転し、点は左下に移動します。'
-  },
-  {
-    category: '論理推理', level: 'DEDUCTION', accent: '#5e7bf7',
-    prompt: '暗証番号として正しいのは？',
-    body: '3桁の数。百の位は一の位の2倍。十の位は百の位より3小さい。3つの数字の合計は9。',
-    choices: ['624', '402', '412', '321'], answer: 2,
-    explanation: '百の位＝2×一の位、十の位＝百の位−3。3つの数字の合計が9になるのは、一の位2・百の位4・十の位1の「412」です。'
-  },
+  rotationQuestion(180),
+  pinQuestion(2, 3),
   {
     category: 'パターン認識', level: 'MATRIX', accent: '#01a878',
     prompt: '空欄に入る記号は？',
@@ -71,6 +60,10 @@ const questions = [
     explanation: '左の数 × 右の数 + 1 の規則です。3×5+1=16、4×6+1=25、5×7+1=36。'
   }
 ];
+const pools = buildPools(baseQuestions);
+let questions = baseQuestions;
+let previousIds = [];
+try { previousIds = JSON.parse(localStorage.getItem('mindprint-last-questions') || '[]'); } catch {}
 
 const icons = {
   arrow: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
@@ -87,6 +80,7 @@ function renderShell(content, mode = '') {
 }
 
 function renderIntro() {
+  state.screen = 'intro';
   const best = localStorage.getItem('mindprint-best');
   renderShell(`
     <nav class="topbar">
@@ -98,7 +92,7 @@ function renderIntro() {
       <div class="eyebrow"><span>01</span> THINK DIFFERENTLY</div>
       <div class="hero-copy">
         <h1>あなたの思考には、<br><em>どんな形</em>がある？</h1>
-        <p>10の問いから、論理・数理・言語・空間認識をスキャン。<br>正解の数だけでは見えない、あなたの“考え方の輪郭”を描きます。</p>
+        <p>30問の問題プールから毎回10問を出題。<br>数列・論理・言語・図形のパズルに挑戦しましょう。</p>
         <button class="primary-btn" id="start-btn" type="button">テストをはじめる ${icons.arrow}</button>
         <div class="meta-row">
           <span>${icons.clock} 約8分</span><span>${icons.spark} 全10問</span><span>登録不要</span>
@@ -124,6 +118,10 @@ function renderIntro() {
 }
 
 function startQuiz() {
+  clearInterval(state.timer);
+  questions = createQuiz(pools, previousIds);
+  previousIds = questions.map(q => q.id);
+  try { localStorage.setItem('mindprint-last-questions', JSON.stringify(previousIds)); } catch {}
   state = { screen: 'quiz', current: 0, answers: Array(questions.length).fill(null), seconds: 480, timer: null };
   renderQuestion();
   state.timer = window.setInterval(() => {
@@ -233,7 +231,7 @@ function finishQuiz() {
       <div class="review-grid">
         ${questions.map((q, i) => {
           const correct = state.answers[i] === q.answer;
-          return `<article class="review-card ${correct ? 'correct' : 'wrong'}">
+          return `<article class="review-card ${correct ? 'correct' : 'wrong'}" style="--accent:${q.accent}">
             <button class="review-summary" type="button" data-review="${i}" aria-expanded="false">
               <span class="review-number">Q${String(i + 1).padStart(2, '0')}</span>
               <span class="review-status">${correct ? 'CORRECT' : 'REVIEW'}</span>
